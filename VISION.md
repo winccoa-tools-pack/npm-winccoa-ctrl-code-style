@@ -50,7 +50,7 @@ and keeps the worker project as the runtime context.
 
 ## Scope
 
-**In scope**
+### In scope
 
 - Dry-run style **check** and in-place **format** for `*.ctl` trees.
 - Bundled StyleCheck sub-project + `astyle.ctl` using `throwError(makeError(...))`
@@ -63,7 +63,7 @@ and keeps the worker project as the runtime context.
 - Composition with existing packages (`npm-winccoa-core`,
   `npm-winccoa-register-project`).
 
-**Out of scope (for this package)**
+### Out of scope (for this package)
 
 - Creating full WinCC OA application projects from scratch.
 - Panel/PNL formatting or non-CTL style tools.
