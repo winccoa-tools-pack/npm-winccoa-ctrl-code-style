@@ -88,9 +88,7 @@ export async function registerStyleCheckSubProject(
 
     const rc = await project.registerProj();
     if (rc !== 0) {
-        throw new Error(
-            `Failed to register StyleCheck as non-runnable (rc=${rc}): ${abs}`,
-        );
+        throw new Error(`Failed to register StyleCheck as non-runnable (rc=${rc}): ${abs}`);
     }
     return abs;
 }
@@ -122,16 +120,11 @@ export async function registerWorkerProjectWithStyleCheck(
         throw new Error(`Worker project path does not exist: ${projectPath}`);
     }
 
-    const registeredStyleCheck = await registerStyleCheckSubProject(
-        styleCheckPath,
-        version,
-    );
+    const registeredStyleCheck = await registerStyleCheckSubProject(styleCheckPath, version);
 
     const oaPath = getWinCCOAInstallationPathByVersion(version);
     if (!oaPath) {
-        throw new Error(
-            `Could not resolve WinCC OA installation path for version ${version}`,
-        );
+        throw new Error(`Could not resolve WinCC OA installation path for version ${version}`);
     }
 
     const configDir = path.join(projectPath, 'config');
@@ -170,9 +163,7 @@ export async function registerWorkerProjectWithStyleCheck(
 
     const rc = await worker.registerProj();
     if (rc !== 0) {
-        throw new Error(
-            `Failed to register worker project (rc=${rc}): ${projectPath}`,
-        );
+        throw new Error(`Failed to register worker project (rc=${rc}): ${projectPath}`);
     }
 
     return {
@@ -211,7 +202,7 @@ export function spawnRegisterProjectCli(args: string[]): void {
         ),
     ];
 
-    let cliPath = candidates.find((p) => fs.existsSync(p));
+    const cliPath = candidates.find((p) => fs.existsSync(p));
     if (!cliPath) {
         // fall back to npx package name
         const result = spawnSync(
@@ -231,8 +222,6 @@ export function spawnRegisterProjectCli(args: string[]): void {
         stdio: 'inherit',
     });
     if (result.status !== 0) {
-        throw new Error(
-            `npm-winccoa-register-project failed with exit ${result.status ?? 'null'}`,
-        );
+        throw new Error(`npm-winccoa-register-project failed with exit ${result.status ?? 'null'}`);
     }
 }

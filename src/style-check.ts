@@ -2,14 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { CtrlComponent } from '@winccoa-tools-pack/npm-winccoa-core/types/components/implementations/CtrlComponent';
 import type { StyleCheckOptions, StyleCheckResult } from './types';
-import {
-    getAstyleScriptPath,
-    getDefaultStyleCheckProjectPath,
-} from './paths';
-import {
-    registerWorkerProjectWithStyleCheck,
-    resolveWinCCOAVersion,
-} from './register';
+import { getAstyleScriptPath, getDefaultStyleCheckProjectPath } from './paths';
+import { registerWorkerProjectWithStyleCheck, resolveWinCCOAVersion } from './register';
 
 const DEFAULT_TIMEOUT = 120_000;
 
@@ -51,9 +45,7 @@ export function buildCtrlArgs(options: {
 /**
  * Run CTL style check or format via worker project + StyleCheck sub-project.
  */
-export async function runStyleCheck(
-    options: StyleCheckOptions,
-): Promise<StyleCheckResult> {
+export async function runStyleCheck(options: StyleCheckOptions): Promise<StyleCheckResult> {
     const version = resolveWinCCOAVersion(options.version);
     const projectPath = path.resolve(options.projectPath);
     const sourcePath = path.resolve(options.sourcePath ?? projectPath);

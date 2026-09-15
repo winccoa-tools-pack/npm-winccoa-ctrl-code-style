@@ -3,7 +3,6 @@
 Check and format WinCC OA **CTL** sources using `WCCOActrl` and the bundled
 non-runnable **StyleCheck** subproject (`astyle.ctl`).
 
-
 ## Vision
 
 Product intent and the non-negotiable worker + StyleCheck project model are

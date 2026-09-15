@@ -14,11 +14,7 @@ export {
     buildCtrlArgs,
     ASTYLE_SCRIPT,
 } from './style-check';
-export {
-    getPackageRoot,
-    getDefaultStyleCheckProjectPath,
-    getAstyleScriptPath,
-} from './paths';
+export { getPackageRoot, getDefaultStyleCheckProjectPath, getAstyleScriptPath } from './paths';
 export {
     registerStyleCheckSubProject,
     registerWorkerProjectWithStyleCheck,

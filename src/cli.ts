@@ -69,11 +69,7 @@ export function parseArgs(argv: string[]): ParsedCliArgs | null {
     }
 
     const commandRaw = args[0];
-    if (
-        commandRaw !== 'check' &&
-        commandRaw !== 'format' &&
-        commandRaw !== 'register'
-    ) {
+    if (commandRaw !== 'check' && commandRaw !== 'format' && commandRaw !== 'register') {
         process.stderr.write(
             'Error: Unknown command "' +
                 commandRaw +
@@ -126,9 +122,7 @@ export function parseArgs(argv: string[]): ParsedCliArgs | null {
                 const raw = args[++i] ?? '';
                 const parsed = Number(raw);
                 if (Number.isNaN(parsed) || parsed <= 0) {
-                    process.stderr.write(
-                        'Error: Invalid timeout value "' + raw + '".\n',
-                    );
+                    process.stderr.write('Error: Invalid timeout value "' + raw + '".\n');
                     return null;
                 }
                 timeout = parsed;
@@ -164,9 +158,7 @@ export async function main(argv: string[] = process.argv): Promise<number> {
     try {
         if (parsed.command === 'register') {
             process.stderr.write(
-                'Registering StyleCheck + worker project ' +
-                    parsed.projectPath +
-                    '\n',
+                'Registering StyleCheck + worker project ' + parsed.projectPath + '\n',
             );
             const result = await registerWorkerProjectWithStyleCheck({
                 projectPath: parsed.projectPath,
@@ -175,12 +167,8 @@ export async function main(argv: string[] = process.argv): Promise<number> {
                 styleCheckProjectPath: parsed.styleCheckProjectPath,
                 forceRewriteConfig: true,
             });
-            process.stderr.write(
-                'Registered worker config: ' + result.configPath + '\n',
-            );
-            process.stderr.write(
-                'StyleCheck sub-project: ' + result.styleCheckPath + '\n',
-            );
+            process.stderr.write('Registered worker config: ' + result.configPath + '\n');
+            process.stderr.write('StyleCheck sub-project: ' + result.styleCheckPath + '\n');
             return EXIT_OK;
         }
 
@@ -203,9 +191,7 @@ export async function main(argv: string[] = process.argv): Promise<number> {
         );
 
         const result =
-            parsed.command === 'format'
-                ? await formatStyle(options)
-                : await checkStyle(options);
+            parsed.command === 'format' ? await formatStyle(options) : await checkStyle(options);
 
         if (result.stdout) {
             process.stdout.write(result.stdout);
@@ -225,9 +211,7 @@ export async function main(argv: string[] = process.argv): Promise<number> {
             return EXIT_OK;
         }
 
-        process.stderr.write(
-            'Style operation failed with exit code ' + result.exitCode + '.\n',
-        );
+        process.stderr.write('Style operation failed with exit code ' + result.exitCode + '.\n');
         return EXIT_FAILED;
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
