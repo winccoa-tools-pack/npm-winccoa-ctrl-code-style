@@ -1,72 +1,85 @@
 /**
- * Conversion direction for PNL ⇄ XML transformations.
+ * Options for CTL style check / format via WCCOActrl + astyle.ctl.
+ *
+ * Worker project is the runnable source project (e.g. Squirt). StyleCheck is
+ * registered as a non-runnable sub-project so scripts resolve from there while
+ * logs and artifacts stay on the worker project.
  */
-export enum ConversionDirection {
-    /** Convert .pnl panel files to .xml */
-    PNL_TO_XML = 'XML',
-    /** Convert .xml files back to .pnl panels */
-    XML_TO_PNL = 'PNL',
-}
-
-/**
- * Options for the PNL ⇄ XML conversion process.
- */
-export interface ConversionOptions {
+export interface StyleCheckOptions {
     /**
-     * WinCC OA version to use (e.g., '3.20').
-     * Required to locate the correct WCCOAui executable.
+     * Absolute or relative path to the runnable WinCC OA source project
+     * (the worker project, e.g. `src/Squirt`).
+     */
+    projectPath: string;
+
+    /**
+     * WinCC OA version (e.g. `3.21`).
      */
     version: string;
 
     /**
-     * Path to the panel file (.pnl) or directory to convert.
-     *
-     * WCCOAui resolves this path **relative to the project's `panels/`
-     * directory**, so typically a bare filename like `"about.pnl"` or a
-     * sub-path like `"sub/myPanel.pnl"` is expected — not an absolute path.
+     * Directory to scan for `*.ctl` files.
+     * Defaults to `projectPath` when omitted.
      */
-    inputPath: string;
+    sourcePath?: string;
 
     /**
-     * Whether to overwrite existing output files.
-     * Maps to the `-o` flag of the UI manager.
+     * When true, format files in place. When false (default), dry-run only.
      * @default false
      */
-    overwrite?: boolean;
+    applyChanges?: boolean;
 
     /**
-     * Path to the WinCC OA project config file.
-     * Allows WCCOAui to locate a valid project context without registration.
-     * Maps to the `-config` flag of the UI manager.
+     * Languages for runnable project registration.
+     * @default ['en_US.utf8']
      */
-    configPath?: string;
+    langs?: string[];
 
     /**
-     * Timeout in milliseconds for the conversion process.
-     * @default 60000
+     * Path or registered id of the StyleCheck sub-project.
+     * Defaults to the `winccoa/StyleCheck` directory shipped with this package.
+     */
+    styleCheckProjectPath?: string;
+
+    /**
+     * When true, register StyleCheck (non-runnable) and the worker project
+     * (runnable, with StyleCheck as --sub-project) before running.
+     * @default true
+     */
+    registerProject?: boolean;
+
+    /**
+     * Timeout in milliseconds for the WCCOActrl process.
+     * @default 120000
      */
     timeout?: number;
 }
 
 /**
- * Result of a PNL ⇄ XML conversion operation.
+ * Result of a style check / format run.
  */
-export interface ConversionResult {
-    /** Whether the conversion completed successfully (exit code 0). */
+export interface StyleCheckResult {
+    /** True when exit code is 0. */
     success: boolean;
 
-    /** Process exit code. */
+    /** WCCOActrl / astyle exit code. */
     exitCode: number;
 
-    /** Standard output captured from the UI manager process. */
+    /** Captured stdout. */
     stdout: string;
 
-    /** Standard error output captured from the UI manager process. */
+    /** Captured stderr (includes WinCC OA throwError log lines). */
     stderr: string;
 
-    /** The input path that was converted. */
-    inputPath: string;
+    /** Absolute worker project path. */
+    projectPath: string;
 
-    /** The conversion direction used. */
-    direction: ConversionDirection;
+    /** Absolute source path that was checked. */
+    sourcePath: string;
+
+    /** Absolute path to the worker project config file used with -config. */
+    configPath: string;
+
+    /** Whether formatting was applied. */
+    applyChanges: boolean;
 }

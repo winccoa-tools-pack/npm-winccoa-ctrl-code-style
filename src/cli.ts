@@ -1,100 +1,97 @@
 #!/usr/bin/env node
 
-import { PnlXmlConverter } from './converter';
-import { ConversionDirection } from './types';
-import type { ConversionOptions } from './types';
+import { checkStyle, formatStyle } from './style-check';
+import { registerWorkerProjectWithStyleCheck } from './register';
+import type { StyleCheckOptions } from './types';
 
-/**
- * CLI exit codes.
- */
 const EXIT_OK = 0;
 const EXIT_USAGE = 1;
-const EXIT_CONVERSION_FAILED = 2;
+const EXIT_FAILED = 2;
 
-/**
- * Print usage information to stderr.
- */
-function printUsage(): void {
-    const bin = 'winccoa-pnl-xml';
+export interface ParsedCliArgs {
+    command: 'check' | 'format' | 'register';
+    projectPath: string;
+    sourcePath?: string;
+    version?: string;
+    langs?: string[];
+    styleCheckProjectPath?: string;
+    registerProject: boolean;
+    timeout?: number;
+}
+
+export function printUsage(): void {
+    const bin = 'winccoa-ctrl-style';
     process.stderr.write(
         [
             '',
-            `Usage: ${bin} <command> [options]`,
+            'Usage: ' + bin + ' <command> <projectPath> [options]',
             '',
             'Commands:',
-            '  convert pnl-to-xml <path>   Convert .pnl panel(s) to XML',
-            '  convert xml-to-pnl <path>   Convert XML file(s) back to .pnl',
+            '  check <projectPath>      Dry-run: fail if CTL files need formatting',
+            '  format <projectPath>     Format CTL files in place via astyle',
+            '  register <projectPath>   Register StyleCheck + worker project only',
             '',
             'Options:',
-            '  -v, --version <ver>   WinCC OA version (e.g. 3.20)  [required]',
-            '  -c, --config <path>   WinCC OA project config file',
-            '  -o, --overwrite       Overwrite existing output files',
-            '  -t, --timeout <ms>    Process timeout in milliseconds (default: 60000)',
-            '  -h, --help            Show this help message',
+            '  -v, --version <ver>          WinCC OA version (e.g. 3.21)',
+            '  -s, --source <path>          CTL tree to scan (default: projectPath)',
+            '  --langs <csv>                Worker project langs (default: en_US.utf8)',
+            '  --style-check-path <path>    StyleCheck sub-project (default: package winccoa/StyleCheck)',
+            '  --no-register                Skip registration (use existing worker config)',
+            '  -t, --timeout <ms>           WCCOActrl timeout in ms (default: 120000)',
+            '  -h, --help                   Show this help',
             '',
             'Examples:',
-            `  ${bin} convert pnl-to-xml panels/myPanel.pnl -v 3.20`,
-            `  ${bin} convert xml-to-pnl panels/myPanel.xml -v 3.20 -o`,
-            `  ${bin} convert pnl-to-xml panels/ -v 3.20 --timeout 120000`,
+            '  ' + bin + ' register ./src/Squirt -v 3.21',
+            '  ' + bin + ' check ./src/Squirt -v 3.21',
+            '  ' + bin + ' format ./src/Squirt -v 3.21 -s ./src/Squirt/scripts',
+            '',
+            'Flow:',
+            '  1. Register bundled StyleCheck as non-runnable',
+            '  2. Register worker project as runnable with StyleCheck as sub-project',
+            '  3. WCCOActrl -config <worker>/config/config -n -log +stderr astyle.ctl ...',
+            '',
+            '  astyle.config is resolved via getPath (worker, StyleCheck, then OA install).',
+            '  Put a custom astyle.config under the worker project config/ if needed.',
+            '  Logs and artifacts stay on the worker project, not StyleCheck.',
+            '',
+            'Local helper script:',
+            '  ./scripts/register-stylecheck-projects.sh --project-path ./src/Squirt -v 3.21',
             '',
         ].join('\n'),
     );
 }
 
-/**
- * Minimal argument parser.
- * Returns the parsed CLI options or null when the input is invalid.
- */
-interface ParsedArgs {
-    direction: ConversionDirection;
-    inputPath: string;
-    version: string;
-    configPath?: string;
-    overwrite: boolean;
-    timeout?: number;
-}
-
-function parseArgs(argv: string[]): ParsedArgs | null {
-    // Strip node + script path
+export function parseArgs(argv: string[]): ParsedCliArgs | null {
     const args = argv.slice(2);
 
     if (args.length === 0 || args.includes('-h') || args.includes('--help')) {
         return null;
     }
 
-    // Expect: convert <pnl-to-xml|xml-to-pnl> <path> [options]
-    if (args[0] !== 'convert') {
-        process.stderr.write(`Error: Unknown command "${args[0]}". Expected "convert".\n`);
-        return null;
-    }
-
-    const subCommand = args[1];
-    let direction: ConversionDirection;
-
-    if (subCommand === 'pnl-to-xml') {
-        direction = ConversionDirection.PNL_TO_XML;
-    } else if (subCommand === 'xml-to-pnl') {
-        direction = ConversionDirection.XML_TO_PNL;
-    } else {
+    const commandRaw = args[0];
+    if (commandRaw !== 'check' && commandRaw !== 'format' && commandRaw !== 'register') {
         process.stderr.write(
-            `Error: Unknown sub-command "${subCommand}". Expected "pnl-to-xml" or "xml-to-pnl".\n`,
+            'Error: Unknown command "' +
+                commandRaw +
+                '". Expected "check", "format", or "register".\n',
         );
         return null;
     }
 
-    const inputPath = args[2];
-    if (!inputPath || inputPath.startsWith('-')) {
-        process.stderr.write('Error: Missing input path.\n');
+    const projectPath = args[1];
+    if (!projectPath || projectPath.startsWith('-')) {
+        process.stderr.write('Error: Missing projectPath.\n');
         return null;
     }
 
-    let version = '';
-    let configPath: string | undefined;
-    let overwrite = false;
+    let version: string | undefined;
+    let sourcePath: string | undefined;
+    let langs: string[] | undefined;
+    let styleCheckProjectPath: string | undefined;
+    let registerProject = true;
     let timeout: number | undefined;
 
-    // Parse remaining flags
-    let i = 3;
+    let i = 2;
     while (i < args.length) {
         const flag = args[i];
         switch (flag) {
@@ -102,101 +99,142 @@ function parseArgs(argv: string[]): ParsedArgs | null {
             case '--version':
                 version = args[++i] ?? '';
                 break;
-            case '-c':
-            case '--config':
-                configPath = args[++i] ?? '';
+            case '-s':
+            case '--source':
+                sourcePath = args[++i] ?? '';
                 break;
-            case '-o':
-            case '--overwrite':
-                overwrite = true;
+            case '--langs': {
+                const raw = args[++i] ?? '';
+                langs = raw
+                    .split(/[ ,]+/)
+                    .map((s) => s.trim())
+                    .filter(Boolean);
+                break;
+            }
+            case '--style-check-path':
+                styleCheckProjectPath = args[++i] ?? '';
+                break;
+            case '--no-register':
+                registerProject = false;
                 break;
             case '-t':
             case '--timeout': {
                 const raw = args[++i] ?? '';
                 const parsed = Number(raw);
-                if (isNaN(parsed) || parsed <= 0) {
-                    process.stderr.write(`Error: Invalid timeout value "${raw}".\n`);
+                if (Number.isNaN(parsed) || parsed <= 0) {
+                    process.stderr.write('Error: Invalid timeout value "' + raw + '".\n');
                     return null;
                 }
                 timeout = parsed;
                 break;
             }
             default:
-                process.stderr.write(`Error: Unknown option "${flag}".\n`);
+                process.stderr.write('Error: Unknown option "' + flag + '".\n');
                 return null;
         }
         i++;
     }
 
-    if (!version) {
-        process.stderr.write('Error: WinCC OA version is required (-v / --version).\n');
-        return null;
-    }
-
-    return { direction, inputPath, version, configPath, overwrite, timeout };
+    return {
+        command: commandRaw,
+        projectPath,
+        sourcePath: sourcePath || undefined,
+        version: version || undefined,
+        langs,
+        styleCheckProjectPath: styleCheckProjectPath || undefined,
+        registerProject,
+        timeout,
+    };
 }
 
-/**
- * Main CLI entry point.
- */
-async function main(): Promise<void> {
-    const parsed = parseArgs(process.argv);
+export async function main(argv: string[] = process.argv): Promise<number> {
+    const parsed = parseArgs(argv);
 
     if (!parsed) {
         printUsage();
-        process.exitCode = EXIT_USAGE;
-        return;
+        return EXIT_USAGE;
     }
 
-    const options: ConversionOptions = {
-        version: parsed.version,
-        inputPath: parsed.inputPath,
-        configPath: parsed.configPath,
-        overwrite: parsed.overwrite,
-        timeout: parsed.timeout,
-    };
-
-    const directionLabel =
-        parsed.direction === ConversionDirection.PNL_TO_XML ? 'PNL → XML' : 'XML → PNL';
-
-    process.stderr.write(`Converting ${directionLabel}: ${parsed.inputPath}\n`);
-
     try {
-        const converter = new PnlXmlConverter();
-        const result = await converter.convert(options, parsed.direction);
+        if (parsed.command === 'register') {
+            process.stderr.write(
+                'Registering StyleCheck + worker project ' + parsed.projectPath + '\n',
+            );
+            const result = await registerWorkerProjectWithStyleCheck({
+                projectPath: parsed.projectPath,
+                version: parsed.version ?? '',
+                langs: parsed.langs,
+                styleCheckProjectPath: parsed.styleCheckProjectPath,
+                forceRewriteConfig: true,
+            });
+            process.stderr.write('Registered worker config: ' + result.configPath + '\n');
+            process.stderr.write('StyleCheck sub-project: ' + result.styleCheckPath + '\n');
+            return EXIT_OK;
+        }
+
+        const options: StyleCheckOptions = {
+            projectPath: parsed.projectPath,
+            version: parsed.version ?? '',
+            sourcePath: parsed.sourcePath,
+            applyChanges: parsed.command === 'format',
+            langs: parsed.langs,
+            styleCheckProjectPath: parsed.styleCheckProjectPath,
+            registerProject: parsed.registerProject,
+            timeout: parsed.timeout,
+        };
+
+        process.stderr.write(
+            (parsed.command === 'format' ? 'Formatting' : 'Checking') +
+                ' CTL style for project ' +
+                parsed.projectPath +
+                '\n',
+        );
+
+        const result =
+            parsed.command === 'format' ? await formatStyle(options) : await checkStyle(options);
 
         if (result.stdout) {
             process.stdout.write(result.stdout);
+            if (!result.stdout.endsWith('\n')) {
+                process.stdout.write('\n');
+            }
         }
         if (result.stderr) {
             process.stderr.write(result.stderr);
+            if (!result.stderr.endsWith('\n')) {
+                process.stderr.write('\n');
+            }
         }
 
         if (result.success) {
-            process.stderr.write('Conversion completed successfully.\n');
-            process.exitCode = EXIT_OK;
-        } else {
-            process.stderr.write(`Conversion failed with exit code ${result.exitCode}.\n`);
-            process.exitCode = EXIT_CONVERSION_FAILED;
+            process.stderr.write('Style operation completed successfully.\n');
+            return EXIT_OK;
         }
+
+        process.stderr.write('Style operation failed with exit code ' + result.exitCode + '.\n');
+        return EXIT_FAILED;
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
-        process.stderr.write(`Error: ${message}\n`);
-        process.exitCode = EXIT_CONVERSION_FAILED;
+        process.stderr.write('Error: ' + message + '\n');
+        return EXIT_FAILED;
     }
 }
 
-// Auto-run only when invoked directly (not when imported for testing)
 const isDirectRun =
-    process.argv[1] &&
+    !!process.argv[1] &&
     (process.argv[1].endsWith('cli.js') ||
         process.argv[1].endsWith('cli.ts') ||
         process.argv[1].endsWith('cli.cjs') ||
         process.argv[1].endsWith('cli.mjs'));
 
 if (isDirectRun) {
-    main();
+    main()
+        .then((code) => {
+            process.exit(code);
+        })
+        .catch((err: unknown) => {
+            const message = err instanceof Error ? err.message : String(err);
+            process.stderr.write('Error: ' + message + '\n');
+            process.exit(EXIT_FAILED);
+        });
 }
-
-// Export for testing
-export { parseArgs, printUsage, main };

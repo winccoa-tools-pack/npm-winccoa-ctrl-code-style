@@ -1,7 +1,7 @@
 {
-  "name": "@winccoa-tools-pack/npm-winccoa-template",
-  "version": "0.2.2",
-  "description": "Template for WinCC OA npm packages",
+  "name": "@winccoa-tools-pack/npm-winccoa-ctrl-code-style",
+  "version": "0.1.0",
+  "description": "CLI and API to check/format WinCC OA CTL sources via WCCOActrl and astyle.ctl",
   "author": "winccoa-tools-pack",
   "license": "MIT",
   "main": "dist/cjs/index.js",
@@ -12,23 +12,15 @@
       "import": "./dist/esm/index.js",
       "require": "./dist/cjs/index.js",
       "types": "./dist/index.d.ts"
-    },
-    "./utils/*": {
-      "import": "./dist/esm/utils/*.js",
-      "require": "./dist/cjs/utils/*.js",
-      "types": "./dist/utils/*.d.ts"
-    },
-    "./types/*": {
-      "import": "./dist/esm/types/*.js",
-      "require": "./dist/cjs/types/*.js",
-      "types": "./dist/types/*.d.ts"
     }
   },
   "bin": {
-    "winccoa-pnl-xml": "./dist/cjs/cli.js"
+    "winccoa-ctrl-style": "./dist/cjs/cli.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "winccoa",
+    "scripts"
   ],
   "scripts": {
     "build:types": "tsc -p tsconfig.build.types.json",
@@ -48,10 +40,12 @@
     "test": "npm run style-check && npm run build && npm run test:unit",
     "test:unit": "node --import tsx scripts/run-node-tests.ts test/unit",
     "test:integration": "node --import tsx scripts/run-node-tests.ts test/integration",
-    "ci:integration": "npm ci && npm run build && npm run test:integration"
+    "ci:integration": "npm ci && npm run build && npm run test:integration",
+    "register:projects": "node dist/cjs/cli.js register"
   },
   "dependencies": {
-    "@winccoa-tools-pack/npm-winccoa-core": "^2.0.8"
+    "@winccoa-tools-pack/npm-winccoa-core": "^2.0.8",
+    "@winccoa-tools-pack/npm-winccoa-register-project": "^1.1.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
@@ -67,9 +61,6 @@
     "tsx": "^4.23.13",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.68.0"
-  },
-  "config": {
-    "winccoaImage": "mpokornyetm/winccoa-tools-pack-npm-winccoa-core:npm-winccoa-core"
   },
   "engines": {
     "node": ">=20"
