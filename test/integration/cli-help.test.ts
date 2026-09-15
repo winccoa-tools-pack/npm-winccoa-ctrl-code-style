@@ -9,9 +9,6 @@ let _lastSpawnResult: ReturnType<typeof spawnSync> | undefined;
 
 test('CLI: "--help" prints usage and exits with code 1', () => {
     const repoRoot = path.resolve(__dirname, '..', '..');
-
-    // Prefer the built CJS CLI (matches what users run via the npm bin entry).
-    // Fall back to TS source so `npm run test:integration` can be run without a build.
     const distCli = path.join(repoRoot, 'dist', 'cjs', 'cli.js');
     const srcCli = path.join(repoRoot, 'src', 'cli.ts');
 
@@ -28,7 +25,9 @@ test('CLI: "--help" prints usage and exits with code 1', () => {
     _lastSpawnResult = result;
 
     assert.equal(result.status, 1);
-    assert.match(result.stderr ?? '', /Usage: winccoa-pnl-xml/);
+    assert.match(result.stderr ?? '', /Usage: winccoa-ctrl-style/);
+    assert.match(result.stderr ?? '', /register/);
+    assert.match(result.stderr ?? '', /-config/);
 });
 
 test.after(() => {
@@ -42,8 +41,6 @@ test.after(() => {
             });
         }
     } catch (err) {
-        // Don't fail the test run during teardown printing
-        // eslint-disable-next-line no-console
         console.warn('Failed to print local integration test result:', err);
     }
 });

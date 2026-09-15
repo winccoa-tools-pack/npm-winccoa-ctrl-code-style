@@ -1,187 +1,123 @@
----
-Minimal starter template for creating shared WinCC OA NPM libraries
-THIS IS AN EXAMPLE README
----
+# npm-winccoa-ctrl-code-style
+
+Check and format WinCC OA **CTL** sources using `WCCOActrl` and the bundled
+non-runnable **StyleCheck** subproject (`astyle.ctl`).
 
 
-# WinCC OA UI PNL/XML Converter
+## Vision
 
-A lightweight developer tool for SIMATIC WinCC Open Architecture projects, providing reliable PNL ⇄ XML transformations for UI panels.
-This package is part of the modular winccoa-tools-pack ecosystem, which delivers modern development tooling,
-reusable libraries, and VS Code extensions for WinCC OA engineers.
-[github.com](https://github.com/winccoa-tools-pack)
+Product intent and the non-negotiable worker + StyleCheck project model are
+documented in [VISION.md](./VISION.md). Development detail lives in
+[docs/dev/VISION.md](./docs/dev/VISION.md).
 
-## ✨ Features
+## Correct project model
 
-- **PNL → XML conversion**  
-  Transform classic .pnl UI panel files into structured XML suitable for analysis, automation, and editor tooling.
+1. Register **StyleCheck** as a **non-runnable** WinCC OA project.
+2. Register the **worker / source project** (e.g. Squirt) as **runnable**, with
+   StyleCheck attached via `--sub-project StyleCheck`
+   (`@winccoa-tools-pack/npm-winccoa-register-project`).
+3. Start CTRL against the **worker** config (not `-proj StyleCheck`):
 
-- **XML → PNL conversion**  
-  Regenerate WinCC OA .pnl files from XML to enable round-trip workflows and external processing.
-
-- **Tooling-friendly design**  
-  Built to integrate with next-generation WinCC OA development tools such as VS Code extensions,
-  reusable workflows, and advanced analysis pipelines,
-  consistent with the overall goals of the winccoa-tools-pack organization.
-
-- **Modern project template**  
-  Generated from the shared npm-winccoa-template to ensure consistent structure, CI/CD, TypeScript setup, linting, and maintainability across the ecosystem.
-
-## 📦 Installation
-
-```shell
-npm install @winccoa-tools-pack/npm-winccoa-ui-pnl-xml
+```text
+WCCOActrl -config <worker>/config/config -n -log +stderr astyle.ctl <source> [TRUE]
 ```
 
-Or globally:
+Why this is correct:
 
-```shell
-npm install -g @winccoa-tools-pack/npm-winccoa-ui-pnl-xml
-```
+- The worker project owns logs and artifacts (not StyleCheck).
+- `getPath` resolves scripts from StyleCheck as a sub-project.
+- Optional custom `astyle.config` lives under the worker `config/` (or OA default).
+  No CLI `--options` flag is needed.
 
-## 🖥 Usage (CLI)
-
-```shell
-# Convert .pnl → .xml (in-place)
-winccoa-pnl-xml convert pnl-to-xml about.pnl --version 3.20
-
-# Convert .xml → .pnl (in-place)
-winccoa-pnl-xml convert xml-to-pnl about.xml --version 3.20
-
-# Optional flags
-#   --config <path>   Use a specific project config file
-#   --overwrite       Overwrite existing output files
-#   --timeout <ms>    Increase process timeout
-```
-
-## ⚠️ Important behavior
-
-- Conversion is performed by WinCC OA `WCCOAui` and is **in-place** (the input file is rewritten).
-- WinCC OA may create a `.bak` file next to the input.
-- The input passed to `-p` is typically resolved relative to the project’s `panels/` directory.
-  Use `--config` if you need to point the converter at a specific project context.
-
-## 🧩 Usage (API)
-
-```typescript
-import { pnlToXml, xmlToPnl } from "@winccoa-tools-pack/npm-winccoa-ui-pnl-xml";
-
-// Note: WinCC OA performs the conversion in-place and may create a .bak backup.
-// The input path is typically resolved relative to the project’s panels/ directory.
-
-const pnlToXmlResult = await pnlToXml({
-  version: "3.20",
-  inputPath: "about.pnl",
-  // configPath: "C:/path/to/project/config/config",
-  // overwrite: true,
-  // timeout: 120_000,
-});
-
-if (!pnlToXmlResult.success) {
-  throw new Error(`Conversion failed (exit ${pnlToXmlResult.exitCode}): ${pnlToXmlResult.stderr}`);
-}
-
-const xmlToPnlResult = await xmlToPnl({
-  version: "3.20",
-  inputPath: "about.xml",
-});
-
-console.log({ pnlToXmlResult, xmlToPnlResult });
-```
-
-More details: see [docs/USAGE.md](docs/USAGE.md).
-
-## 🩺 Troubleshooting
-
-- Non-zero exit code: inspect `stderr` and ensure `--version` matches your WinCC OA installation.
-- Timeouts on large panels: increase `--timeout` / `timeout`.
-- File not found: remember `inputPath` is usually relative to `panels/` in the active project context.
-
-## 📚 Ecosystem Integration
-
-This package is designed for seamless use with:
-
-- **VS Code extensions for WinCC OA development**  
-  Our open source community provides multiple VS Code tools that enhance the engineering workflow
-  for WinCC OA developers. This converter acts as a foundation for UI-related features such as the Panel Explorer.
-
-- **Node.js libraries**  
-  Works side-by-side with other libraries in the winccoa-tools-pack suite (project management, core utilities, testing, etc.).
-
-- **CI/CD automation**  
-  Ideal for pipelines needing validation or transformation of UI panel resources.
-
-- **Automation tokens** are recommended for CI/CD (they don't expire but can be revoked)
-- The token needs **publish** permission for your package scope
-- For scoped packages (`@winccoa-tools-pack/...`), ensure your NPM organization allows publishing
-
-### Testing Without NPM_TOKEN
-
-If `NPM_TOKEN` is not configured, the workflow will:
-
-- ✅ Still run tests and build the package
-- ✅ Create GitHub releases with artifacts
-- ⚠️ Skip NPM publishing with a warning message
-
-You can always publish manually later:
+## Install
 
 ```bash
-npm publish --access public
+npm install @winccoa-tools-pack/npm-winccoa-ctrl-code-style
 ```
 
-## 📦 Development
+## CLI
 
 ```bash
-# Install dependencies
-npm install
+# Register only (StyleCheck + worker with sub-project)
+winccoa-ctrl-style register ./src/Squirt -v 3.21
 
-# Build the library
+# Dry-run check (registers first by default)
+winccoa-ctrl-style check ./src/Squirt -v 3.21
+
+# Format in place
+winccoa-ctrl-style format ./src/Squirt -v 3.21
+
+# Scan a subtree only
+winccoa-ctrl-style check ./src/Squirt -v 3.21 -s ./src/Squirt/scripts
+```
+
+## Local registration helpers
+
+Shell (Linux / Git Bash / CI):
+
+```bash
+./scripts/register-stylecheck-projects.sh \
+  --project-path ./src/Squirt \
+  --version 3.21 \
+  --langs en_US.utf8
+```
+
+PowerShell (Windows local):
+
+```powershell
+./scripts/register-stylecheck-projects.ps1 `
+  -ProjectPath ./src/Squirt `
+  -Version 3.21
+```
+
+Both helpers call `npm-winccoa-register-project`:
+
+1. `--project-path <StyleCheck> --runnable false`
+2. `--project-path <worker> --runnable true --sub-project <StyleCheck>`
+
+> Note: the register-project CLI only **writes** worker `config` when it does
+> not already exist. For a forced config rewrite that always injects StyleCheck,
+> use `winccoa-ctrl-style register <projectPath> -v <ver>` (in-process API).
+
+## API
+
+```ts
+import {
+  checkStyle,
+  formatStyle,
+  registerWorkerProjectWithStyleCheck,
+} from '@winccoa-tools-pack/npm-winccoa-ctrl-code-style';
+
+await registerWorkerProjectWithStyleCheck({
+  projectPath: './src/Squirt',
+  version: '3.21',
+});
+
+const result = await checkStyle({
+  projectPath: './src/Squirt',
+  version: '3.21',
+  registerProject: false,
+});
+```
+
+## StyleCheck layout
+
+```text
+winccoa/StyleCheck/
+  scripts/astyle.ctl
+```
+
+StyleCheck is **non-runnable**. It has no `config/` or `log/`. The worker
+project owns `config/config` and logs when CTRL runs with `-config`.
+
+## Development
+
+```bash
+npm ci
 npm run build
-
-# Run tests
-npm test
-
-# Lint code
-npm run lint
+npm run test:unit
 ```
 
-## 🏆 Recognition
-
-Special thanks to all our [contributors](https://github.com/orgs/winccoa-tools-pack/people) who make this project possible!
-
-### Key Contributors
-
-- **Martin Pokorny** ([@mPokornyETM](https://github.com/mPokornyETM)) - Creator & Lead Developer
-- And many more amazing contributors!
-
 ---
 
-## 📜 License
-
-This project is licensed under the **MIT License** - see the [LICENSE](https://github.com/winccoa-tools-pack/.github/blob/main/LICENSE) file for details.
-
-It might happen that partial repositories contain third party SW which uses other license models.
-
----
-
-## ⚠️ Disclaimer
-
-**WinCC OA** and **Siemens** are trademarks of Siemens AG.
-This project is not affiliated with, endorsed by, or sponsored by Siemens AG.
-This is a community-driven open source project created to enhance the development experience for WinCC OA developers.
-
----
-
-## 🎉 Thank You
-
-Thank you for using WinCC OA tools package! We're excited to be part of your development journey.
-
-Happy Coding! 🚀
-
----
-
-## Quick Links
-
-[📦 VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=mPokornyETM.wincc-oa-projects)
-
-Made with ❤️ for and by the WinCC OA community
+<center>Made with ❤️ for and by the WinCC OA community</center>
