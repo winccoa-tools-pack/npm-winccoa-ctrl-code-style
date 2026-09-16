@@ -6,6 +6,8 @@
   @brief Run astyle against CTL sources from the worker (source) project.
   @details Resolves astyle.config via getPath (source project, StyleCheck
            sub-project, then WinCC OA installation). Logs via throwError.
+           sourcePath must be a full native absolute directory path —
+           getFileNamesRecursive does not resolve CWD-relative paths.
   @AIgeneratedHelpContent
 */
 
@@ -26,7 +28,7 @@ void logMsg(int prio, const string &text)
 /**
   Run astyle for all CTL files below the given source path.
 
-  @param sourcePath Directory to scan recursively for CTL files.
+  @param sourcePath Full native absolute directory to scan for CTL files.
   @param applyChanges If true, format files in place. If false, dry-run only.
 */
 main(string sourcePath, bool applyChanges = FALSE)
@@ -41,16 +43,30 @@ main(string sourcePath, bool applyChanges = FALSE)
     exit(2);
   }
 
+  // getFileNamesRecursive needs a full native path (not CWD-relative).
+  sourcePath = makeNativePath(sourcePath);
+
+  if (!isdir(sourcePath))
+  {
+    logMsg(PRIO_SEVERE,
+           "sourcePath is not an existing directory (need full native path): " +
+           sourcePath);
+    exit(2);
+  }
+
+  logMsg(PRIO_INFO, "Scanning CTL sources under: " + sourcePath);
+
   dyn_string files = getFileNamesRecursive(sourcePath, "*.ctl");
   dyn_string filesToCheck;
 
   for (int i = 1; i <= dynlen(files); i++)
   {
-    const string path = makeUnixPath(files[i]);
-    dynAppend(filesToCheck, makeNativePath(path));
+    // Keep full native paths for astyle argv.
+    dynAppend(filesToCheck, makeNativePath(files[i]));
   }
 
-  if (dynlen(filesToCheck) == 0)
+  int fileCount = dynlen(filesToCheck);
+  if (fileCount == 0)
   {
     logMsg(PRIO_WARNING, "No .ctl files found below " + sourcePath);
     exit(1);
@@ -80,9 +96,10 @@ main(string sourcePath, bool applyChanges = FALSE)
   dynAppend(args, "--formatted");
   dynAppend(args, filesToCheck);
 
+  // Cast numerics/bools so CTRL string concat cannot drop the count.
   logMsg(PRIO_INFO,
-         "Running astyle on " + dynlen(filesToCheck) +
-         " file(s); applyChanges=" + applyChanges +
+         "Running astyle on " + (string)fileCount +
+         " file(s); applyChanges=" + (string)applyChanges +
          "; options=" + optionsFile);
 
   int rc = system(args, stdOut, stdErr);
@@ -116,15 +133,13 @@ main(string sourcePath, bool applyChanges = FALSE)
       }
     }
 
-    
-
     // Dry-run must fail when any file would be reformatted.
     if (!applyChanges && n > 0)
     {
       rc = 1;
       logMsg(PRIO_WARNING,
-             "astyle found unformatted files: " + n +
-             "; return code set to " + rc);
+             "astyle found unformatted files: " + (string)n +
+             "; return code set to " + (string)rc);
     }
   }
 
@@ -133,7 +148,7 @@ main(string sourcePath, bool applyChanges = FALSE)
 
   if (rc != 0)
   {
-    logMsg(PRIO_SEVERE, "astyle failed with return code " + rc);
+    logMsg(PRIO_SEVERE, "astyle failed with return code " + (string)rc);
     exit(rc);
   }
 
