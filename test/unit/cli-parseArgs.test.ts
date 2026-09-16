@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 import { parseArgs } from '../../src/cli';
@@ -9,6 +10,8 @@ import {
     getAstyleScriptPath,
     getDefaultStyleCheckProjectPath,
     getPackageRoot,
+    isTransientStyleCheckPath,
+    materializeStyleCheckProject,
 } from '../../src/paths';
 
 test('parseArgs: returns null for --help', () => {
@@ -82,7 +85,8 @@ test('parseArgs: rejects unknown command', () => {
     }
 });
 
-test('buildCtrlArgs: dry-run uses -config', () => {
+test('buildCtrlArgs: dry-run uses -config and absolute source', () => {
+    const source = path.resolve('/repo/src/Squirt');
     const args = buildCtrlArgs({
         configPath: '/repo/src/Squirt/config/config',
         sourcePath: '/repo/src/Squirt',
@@ -95,8 +99,9 @@ test('buildCtrlArgs: dry-run uses -config', () => {
         '-log',
         '+stderr',
         'astyle.ctl',
-        '/repo/src/Squirt',
+        source,
     ]);
+    assert.equal(path.isAbsolute(args[args.length - 1]), true);
 });
 
 test('buildCtrlArgs: applyChanges true appends TRUE', () => {
@@ -109,6 +114,18 @@ test('buildCtrlArgs: applyChanges true appends TRUE', () => {
     assert.equal(args[args.length - 1], 'TRUE');
     assert.ok(args.includes('-config'));
     assert.equal(args[5], 'astyle.ctl');
+    assert.equal(path.isAbsolute(args[6]), true);
+});
+
+test('buildCtrlArgs: resolves relative sourcePath to absolute', () => {
+    const args = buildCtrlArgs({
+        configPath: '/repo/config/config',
+        sourcePath: 'src/Squirt',
+        applyChanges: false,
+    });
+    const sourceArg = args[args.length - 1];
+    assert.equal(path.isAbsolute(sourceArg), true);
+    assert.ok(sourceArg.replace(/\\/g, '/').endsWith('/src/Squirt'));
 });
 
 test('paths: package root resolves StyleCheck and astyle.ctl', () => {
@@ -120,6 +137,25 @@ test('paths: package root resolves StyleCheck and astyle.ctl', () => {
     assert.equal(path.basename(project), 'StyleCheck');
     assert.equal(path.basename(script), 'astyle.ctl');
     assert.ok(root.length > 0);
+});
+
+test('paths: transient StyleCheck detection', () => {
+    assert.equal(
+        isTransientStyleCheckPath('/tmp/tmp.abc/node_modules/@scope/pkg/winccoa/StyleCheck'),
+        true,
+    );
+    assert.equal(isTransientStyleCheckPath(getDefaultStyleCheckProjectPath()), false);
+});
+
+test('paths: materialize StyleCheck copies astyle.ctl', () => {
+    const dest = fs.mkdtempSync(path.join(os.tmpdir(), 'stylecheck-'));
+    try {
+        const out = materializeStyleCheckProject(dest);
+        assert.equal(path.resolve(out), path.resolve(dest));
+        assert.ok(fs.existsSync(getAstyleScriptPath(out)));
+    } finally {
+        fs.rmSync(dest, { recursive: true, force: true });
+    }
 });
 
 test('helper scripts exist', () => {
