@@ -6,7 +6,7 @@ import {
     getAvailableWinCCOAVersions,
     getWinCCOAInstallationPathByVersion,
 } from '@winccoa-tools-pack/npm-winccoa-core';
-import { getDefaultStyleCheckProjectPath } from './paths';
+import { resolveStyleCheckProjectPath } from './paths';
 
 const DEFAULT_LANGS = ['en_US.utf8'];
 
@@ -61,8 +61,10 @@ function toUnix(p: string): string {
 
 function ensureStyleCheckLayout(styleCheckPath: string): string {
     const abs = path.resolve(styleCheckPath);
-    if (!fs.existsSync(abs)) {
-        throw new Error(`StyleCheck project path does not exist: ${abs}`);
+    // scripts/ must exist (materialize or package layout).
+    const script = path.join(abs, 'scripts', 'astyle.ctl');
+    if (!fs.existsSync(script)) {
+        throw new Error(`StyleCheck astyle.ctl not found: ${script}`);
     }
 
     // Non-runnable sub-project: only scripts (astyle.ctl). No config/ or log/.
@@ -110,9 +112,12 @@ export async function registerWorkerProjectWithStyleCheck(
 ): Promise<RegisterProjectsResult> {
     const version = resolveWinCCOAVersion(options.version);
     const projectPath = path.resolve(options.projectPath);
-    const styleCheckPath = path.resolve(
-        options.styleCheckProjectPath ?? getDefaultStyleCheckProjectPath(),
-    );
+    // Prefer a durable StyleCheck path (not /tmp/.../node_modules) so worker
+    // config remains valid across Docker containers / CI steps.
+    const styleCheckPath = resolveStyleCheckProjectPath({
+        workerProjectPath: projectPath,
+        styleCheckProjectPath: options.styleCheckProjectPath,
+    });
     const langs = options.langs?.length ? options.langs : DEFAULT_LANGS;
     const forceRewrite = options.forceRewriteConfig !== false;
 
