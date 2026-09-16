@@ -1,6 +1,6 @@
 {
   "name": "@winccoa-tools-pack/npm-winccoa-ctrl-code-style",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "CLI and API to check/format WinCC OA CTL sources via WCCOActrl and astyle.ctl",
   "author": "winccoa-tools-pack",
   "license": "MIT",
