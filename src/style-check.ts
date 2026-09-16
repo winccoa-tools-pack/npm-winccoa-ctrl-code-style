@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { CtrlComponent } from '@winccoa-tools-pack/npm-winccoa-core/types/components/implementations/CtrlComponent';
 import type { StyleCheckOptions, StyleCheckResult } from './types';
-import { getAstyleScriptPath, getDefaultStyleCheckProjectPath } from './paths';
+import { getAstyleScriptPath, resolveStyleCheckProjectPath } from './paths';
 import { registerWorkerProjectWithStyleCheck, resolveWinCCOAVersion } from './register';
 
 const DEFAULT_TIMEOUT = 120_000;
@@ -17,6 +17,9 @@ export const ASTYLE_SCRIPT = 'astyle.ctl';
  *
  * Script is always the bare name `astyle.ctl` (resolved via StyleCheck on
  * proj_path). Worker project is runnable; logs stay on the worker.
+ *
+ * sourcePath must be an absolute path: CTL getFileNamesRecursive does not
+ * resolve CWD-relative paths.
  */
 export function buildCtrlArgs(options: {
     configPath: string;
@@ -32,7 +35,8 @@ export function buildCtrlArgs(options: {
         '-log',
         '+stderr',
         options.scriptName ?? ASTYLE_SCRIPT,
-        options.sourcePath,
+        // Absolute path for CTL file APIs (native separators OK; CTRL makeNativePath too).
+        path.resolve(options.sourcePath),
     ];
 
     if (options.applyChanges) {
@@ -47,12 +51,14 @@ export function buildCtrlArgs(options: {
  */
 export async function runStyleCheck(options: StyleCheckOptions): Promise<StyleCheckResult> {
     const version = resolveWinCCOAVersion(options.version);
+    // Always absolute: CTRL cannot use CWD-relative source trees.
     const projectPath = path.resolve(options.projectPath);
     const sourcePath = path.resolve(options.sourcePath ?? projectPath);
     const applyChanges = options.applyChanges === true;
-    const styleCheckPath = path.resolve(
-        options.styleCheckProjectPath ?? getDefaultStyleCheckProjectPath(),
-    );
+    const styleCheckPath = resolveStyleCheckProjectPath({
+        workerProjectPath: projectPath,
+        styleCheckProjectPath: options.styleCheckProjectPath,
+    });
     // Existence check only — CTRL receives bare script name, not this path.
     const bundledScriptPath = getAstyleScriptPath(styleCheckPath);
     const timeout = options.timeout ?? DEFAULT_TIMEOUT;
@@ -87,6 +93,9 @@ export async function runStyleCheck(options: StyleCheckOptions): Promise<StyleCh
                 `(registerProject or scripts/register-stylecheck-projects.sh).`,
         );
     }
+
+    // Prefer absolute config path for WCCOActrl -config.
+    configPath = path.resolve(configPath);
 
     const ctrl = new CtrlComponent();
     ctrl.setVersion(version);
