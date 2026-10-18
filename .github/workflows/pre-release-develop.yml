@@ -1,4 +1,4 @@
-name: Pre-Release (Develop)
+name: Pre-Release (Develop and Release)
 
 on:
   workflow_run:
@@ -8,6 +8,7 @@ on:
       - completed
     branches:
       - develop
+      - 'release/**'
   workflow_dispatch:
     inputs: {}
 
@@ -18,12 +19,22 @@ permissions:
 jobs:
   pre-release:
     if: |
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
+      (
+        github.ref_name == 'develop' ||
+        startsWith(github.ref_name, 'release/')
+      ) && github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        (
+          github.event.workflow_run.head_branch == 'develop' ||
+          startsWith(github.event.workflow_run.head_branch, 'release/')
+        )
+      )
     uses: ./.github/workflows/prerelease-reusable.yml
     with:
       target_branch: ${{ github.event.workflow_run.head_branch || github.ref_name }}
-      validate_release_branch: false
+      validate_release_branch: ${{ startsWith(github.event.workflow_run.head_branch || github.ref_name, 'release/') }}
       publish_to_npm: false
     secrets:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -36,7 +47,7 @@ jobs:
     steps:
       - name: Success Notification
         run: |
-          echo "🧪 Dev pre-release ${{ needs.pre-release.outputs.tag }} created successfully!"
+          echo "Prerelease ${{ needs.pre-release.outputs.tag }} created successfully!"
           echo "📦 npm tarball (*.tgz) attached to the GitHub pre-release"
           echo "📝 Auto-generated from develop (not published to npm)"
           echo ""
