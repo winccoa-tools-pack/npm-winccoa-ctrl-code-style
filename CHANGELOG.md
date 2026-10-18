@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - add support for blacklisting files and generating reports (#32)
 - add CTL style check package first draft
+- SARIF 2.1.0 and GitLab Code Quality report exporters, original-line findings,
+  portable paths, fingerprints and DevOps integration examples.
+- Blacklist file/directory exclusions for check and format through repeatable
+  `--blacklist`, `--blacklist-file` and corresponding API options.
+- Unified original/formatted diffs in CLI output and API results, enabled by
+  default with `--no-diff` to disable. Failing checks format temporary copies
+  without modifying source files.
+- Skipped-file reporting, line-ending diagnostics and native integration tests.
 
 ### Fixed
 
@@ -39,19 +47,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix MD036 headings in VISION.md
 - style-fix
 - Initial commit
-
-## [Unreleased]
-
-### Added
-
-- SARIF 2.1.0 and GitLab Code Quality report exporters, original-line findings,
-  portable paths, fingerprints and DevOps integration examples.
-- Blacklist file/directory exclusions for check and format through repeatable
-  `--blacklist`, `--blacklist-file` and corresponding API options.
-- Unified original/formatted diffs in CLI output and API results, enabled by
-  default with `--no-diff` to disable. Failing checks format temporary copies
-  without modifying source files.
-- Skipped-file reporting, line-ending diagnostics and native integration tests.
 
 ## [0.1.2] - 2026-09-16
 
