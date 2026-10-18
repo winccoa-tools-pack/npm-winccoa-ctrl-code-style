@@ -1,0 +1,29 @@
+pipeline {
+    agent { label 'winccoa-linux' }
+    stages {
+        stage('CTL Style') {
+            steps {
+                sh '''
+                    mkdir -p .artifacts
+                    status=0
+                    npx --yes "@winccoa-tools-pack/npm-winccoa-ctrl-code-style@${STYLE_PACKAGE_VERSION}" check ./src/Squirt -v 3.21 --report-root "$WORKSPACE" --report-format sarif --report-file .artifacts/ctl-style.sarif > .artifacts/ctl-style.log 2>&1 || status=$?
+                    cat .artifacts/ctl-style.log
+                    exit "$status"
+                '''
+            }
+        }
+    }
+    post {
+        always {
+            archiveArtifacts artifacts: '.artifacts/*', allowEmptyArchive: true
+            script {
+                if (fileExists('.artifacts/ctl-style.sarif')) {
+                    recordIssues enabledForFailure: true,
+                        tools: [sarif(pattern: '.artifacts/ctl-style.sarif')]
+                } else {
+                    error('No CTL style report was generated. Inspect the style log.')
+                }
+            }
+        }
+    }
+}

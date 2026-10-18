@@ -19,6 +19,40 @@ test('parseArgs: returns null for --help', () => {
     assert.equal(parsed, null);
 });
 
+test('parseArgs: reports require a supported format and output path', () => {
+    const args = ['node', 'cli.ts', 'check', '.'];
+    const parsed = parseArgs([...args, '--report-format', 'sarif', '--report-file', 'style.sarif', '--report-root', '.']);
+    assert.equal(parsed?.reportFormat, 'sarif');
+    assert.equal(parsed?.reportFile, 'style.sarif');
+    assert.equal(parseArgs([...args, '--report-format', 'xml']), null);
+    assert.equal(parseArgs([...args, '--report-format', 'gitlab']), null);
+    assert.equal(parseArgs([...args, '--report-file', 'report.json']), null);
+});
+
+test('parseArgs: blacklist options and diff switch', () => {
+    const parsed = parseArgs(['node', 'cli.ts', 'check', '.',
+        '--blacklist', 'src/projectView.ctl', '--blacklist', 'vendor',
+        '--blacklist-file', '.style-blacklist', '--no-diff']);
+    assert.ok(parsed);
+    assert.deepEqual(parsed.blacklist, ['src/projectView.ctl', 'vendor']);
+    assert.equal(parsed.blacklistFile, '.style-blacklist');
+    assert.equal(parsed.showDiff, false);
+    assert.equal(parseArgs(['node', 'cli.ts', 'check', '.'])?.showDiff, true);
+});
+
+test('parseArgs: rejects missing blacklist values', () => {
+    for (const flag of ['--blacklist', '--blacklist-file']) {
+        assert.equal(parseArgs(['node', 'cli.ts', 'check', '.', flag]), null);
+        assert.equal(parseArgs(['node', 'cli.ts', 'check', '.', flag, '--no-diff']), null);
+    }
+});
+
+test('buildCtrlArgs: manifest follows the explicit applyChanges argument', () => {
+    const args = buildCtrlArgs({ configPath: '/cfg', sourcePath: '/src',
+        applyChanges: false, fileListPath: '/tmp/files.json' });
+    assert.deepEqual(args.slice(-2), ['FALSE', '/tmp/files.json']);
+});
+
 test('parseArgs: parses check with version and source', () => {
     const parsed = parseArgs([
         'node',

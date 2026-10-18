@@ -8,6 +8,9 @@
            sub-project, then WinCC OA installation). Logs via throwError.
            sourcePath must be a full native absolute directory path —
            getFileNamesRecursive does not resolve CWD-relative paths.
+           astyle --formatted prints only files that would change; empty
+           stdout means every scanned file already matches style.
+           Optional developer traces: WCCOActrl -dbg STYLE (DebugFTN).
   @AIgeneratedHelpContent
 */
 
@@ -30,8 +33,9 @@ void logMsg(int prio, const string &text)
 
   @param sourcePath Full native absolute directory to scan for CTL files.
   @param applyChanges If true, format files in place. If false, dry-run only.
+  @param fileListPath Optional JSON array of absolute CTL paths selected by CLI.
 */
-main(string sourcePath, bool applyChanges = FALSE)
+main(string sourcePath, bool applyChanges = FALSE, string fileListPath = "")
 {
   dyn_string args;
   string stdErr;
@@ -55,8 +59,25 @@ main(string sourcePath, bool applyChanges = FALSE)
   }
 
   logMsg(PRIO_INFO, "Scanning CTL sources under: " + sourcePath);
+  DebugFTN("STYLE", "sourcePath", sourcePath, "applyChanges", applyChanges);
 
-  dyn_string files = getFileNamesRecursive(sourcePath, "*.ctl");
+  dyn_string files;
+
+  if (!fileListPath.isEmpty())
+  {
+    string manifest;
+
+    if (!fileToString(fileListPath, manifest))
+    {
+      logMsg(PRIO_SEVERE, "Cannot read file manifest: " + fileListPath);
+      exit(2);
+    }
+
+    files = jsonDecode(manifest);
+  }
+  else
+    files = getFileNamesRecursive(sourcePath, "*.ctl");
+
   dyn_string filesToCheck;
 
   for (int i = 1; i <= dynlen(files); i++)
@@ -66,6 +87,8 @@ main(string sourcePath, bool applyChanges = FALSE)
   }
 
   int fileCount = dynlen(filesToCheck);
+  DebugFTN("STYLE", "ctlFileCount", fileCount);
+
   if (fileCount == 0)
   {
     logMsg(PRIO_WARNING, "No .ctl files found below " + sourcePath);
@@ -73,6 +96,7 @@ main(string sourcePath, bool applyChanges = FALSE)
   }
 
   string astyleBin = getPath(BIN_REL_PATH, _WIN32 ? "astyle.exe" : "astyle");
+
   if (astyleBin.isEmpty())
   {
     logMsg(PRIO_SEVERE, "astyle executable not found in WinCC OA bin path");
@@ -81,6 +105,7 @@ main(string sourcePath, bool applyChanges = FALSE)
 
   // Search order: worker project config, StyleCheck sub-project, OA install.
   string optionsFile = getPath(CONFIG_REL_PATH, "astyle.config");
+
   if (optionsFile.isEmpty())
   {
     logMsg(PRIO_SEVERE, "astyle.config not found via getPath(CONFIG_REL_PATH)");
@@ -90,11 +115,17 @@ main(string sourcePath, bool applyChanges = FALSE)
   args[1] = astyleBin;
   args[2] = "--options=" + makeNativePath(optionsFile);
   args[3] = "--suffix=none";
+
   if (!applyChanges)
     args[4] = "--dry-run";
 
+  // --formatted: only list files that astyle would change (or did change).
+  // Unchanged files produce no stdout line — empty stdout is a clean tree.
   dynAppend(args, "--formatted");
   dynAppend(args, filesToCheck);
+
+  DebugFTN("STYLE", "astyleBin", astyleBin, "optionsFile", optionsFile,
+           "argc", dynlen(args));
 
   // Cast numerics/bools so CTRL string concat cannot drop the count.
   logMsg(PRIO_INFO,
@@ -107,19 +138,32 @@ main(string sourcePath, bool applyChanges = FALSE)
   strreplace(stdOut, "\r", "");
   strreplace(stdErr, "\r", "");
 
+  int outLen = strlen(stdOut);
+  int errLen = strlen(stdErr);
+  DebugFTN("STYLE", "astyleRc", rc, "stdoutLen", outLen, "stderrLen", errLen);
+  logMsg(PRIO_INFO,
+         "astyle finished rc=" + (string)rc +
+         " stdoutBytes=" + (string)outLen +
+         " stderrBytes=" + (string)errLen);
+
   if (stdOut != "")
   {
     dyn_string lines = strsplit(stdOut, "\n");
     int n = 0;
+
     for (int i = 1; i <= dynlen(lines); i++)
     {
       const string line = lines[i];
+
       if (!line.isEmpty())
       {
         n++;
+        // astyle line: "<status> <path>" (locale may vary, e.g. Formatiert).
         const int firstSpace = strpos(line, " ");
-        string path = firstSpace > 0 ? strltrim(strrtrim(substr(line, firstSpace))) : line;
-        logMsg(applyChanges ? PRIO_INFO : PRIO_WARNING, "formatted: " + path);
+        string path = firstSpace > 0
+                      ? strltrim(strrtrim(substr(line, firstSpace)))
+                      : line;
+        DebugFTN("STYLE", "formattedLine", n, line);
 
         if (applyChanges)
         {
@@ -127,8 +171,9 @@ main(string sourcePath, bool applyChanges = FALSE)
         }
         else
         {
-          // keep the \n\tLocation for CI log parsers to detect the file path ;-)
-          logMsg(PRIO_WARNING, "The file has wrong formatting, Location:\n\t" + path);
+          // \n\tLocation for CI log parsers (file path after tab).
+          logMsg(PRIO_WARNING,
+                 "The file has wrong formatting, Location:\n\t" + path);
         }
       }
     }
@@ -141,6 +186,14 @@ main(string sourcePath, bool applyChanges = FALSE)
              "astyle found unformatted files: " + (string)n +
              "; return code set to " + (string)rc);
     }
+  }
+  else
+  {
+    // Expected with --formatted when every file already matches style.
+    logMsg(PRIO_INFO,
+           "astyle stdout empty with --formatted: all " +
+           (string)fileCount +
+           " file(s) already match style (no reformats)");
   }
 
   if (stdErr != "")
