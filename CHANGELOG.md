@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.0] - 2026-10-18
 
+### Security
+
+- Override vulnerable development-tool dependencies with patched versions:
+  `js-yaml` 5.4.1 (GHSA-r3ph-w7gj-g6xm), `katex` 0.18.2
+  (GHSA-238p-pmpm-9mq7), and `smol-toml` 1.9.0
+  (GHSA-r4xh-jqrq-34v2). Overrides are scoped to their parent tools until
+  upstream dependency ranges accept the fixes.
+
 ### Added
 
 - add support for blacklisting files and generating reports (#32)
