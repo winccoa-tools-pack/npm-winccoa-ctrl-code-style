@@ -6,6 +6,8 @@
  */
 
 export type { StyleCheckOptions, StyleCheckResult } from './types';
+export type { ReportFormat, StyleFinding } from './reports';
+export { formattingFindings, writeReport } from './reports';
 export type { RegisterProjectsOptions, RegisterProjectsResult } from './register';
 export {
     runStyleCheck,

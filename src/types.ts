@@ -6,6 +6,11 @@
  * logs and artifacts stay on the worker project.
  */
 export interface StyleCheckOptions {
+    /** Optional machine-readable report; reportFile is required when set. */
+    reportFormat?: import('./reports').ReportFormat;
+    reportFile?: string;
+    /** Checkout root for portable report paths. Defaults to process.cwd(). */
+    reportRoot?: string;
     /**
      * Absolute or relative path to the runnable WinCC OA source project
      * (the worker project, e.g. `src/Squirt`).
@@ -22,6 +27,15 @@ export interface StyleCheckOptions {
      * Defaults to `projectPath` when omitted.
      */
     sourcePath?: string;
+
+    /** Exact file/directory paths to skip, relative to process.cwd() or absolute. */
+    blacklist?: string[];
+
+    /** UTF-8 path list; entries resolve relative to this file. Blank lines and # comments are ignored. */
+    blacklistFile?: string;
+
+    /** Include unified original/formatted diffs. Check mode uses temporary copies. @default true */
+    showDiff?: boolean;
 
     /**
      * When true, format files in place. When false (default), dry-run only.
@@ -82,4 +96,12 @@ export interface StyleCheckResult {
 
     /** Whether formatting was applied. */
     applyChanges: boolean;
+
+    /** Unified original/formatted patches, empty when unchanged or disabled. */
+    diff: string;
+
+    /** Absolute paths excluded from this run. */
+    skippedFiles: string[];
+    findings: import('./reports').StyleFinding[];
+    reportFile?: string;
 }

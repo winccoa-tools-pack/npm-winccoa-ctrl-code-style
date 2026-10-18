@@ -1,0 +1,17 @@
+ctl-style:
+  image: $WINCCOA_STYLE_IMAGE
+  script:
+    - mkdir -p .artifacts
+    - |
+      status=0
+      npx --yes "@winccoa-tools-pack/npm-winccoa-ctrl-code-style@${STYLE_PACKAGE_VERSION}" check ./src/Squirt -v 3.21 --report-root "$CI_PROJECT_DIR" --report-format gitlab --report-file gl-code-quality-report.json > .artifacts/ctl-style.log 2>&1 || status=$?
+      cat .artifacts/ctl-style.log
+      exit "$status"
+  artifacts:
+    when: always
+    reports:
+      codequality: gl-code-quality-report.json
+    paths:
+      - gl-code-quality-report.json
+      - .artifacts/ctl-style.log
+    expire_in: 1 week

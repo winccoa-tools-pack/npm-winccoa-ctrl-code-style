@@ -1,0 +1,34 @@
+# Example only: not tested against a live Azure DevOps instance.
+# Adapt the agent pool, package version and installed WinCC OA version.
+pool:
+  name: WinCCOA-Linux
+
+variables:
+  STYLE_PACKAGE_VERSION: '<supporting-release-version>'
+
+steps:
+  - checkout: self
+
+  - bash: |
+      mkdir -p .artifacts
+      status=0
+      npx --yes \
+        "@winccoa-tools-pack/npm-winccoa-ctrl-code-style@${STYLE_PACKAGE_VERSION}" \
+        check ./src/Squirt -v 3.21 \
+        --report-format sarif \
+        --report-file .artifacts/ctl-style.sarif \
+        --report-root "$BUILD_SOURCESDIRECTORY" \
+        > .artifacts/ctl-style.log 2>&1 || status=$?
+      cat .artifacts/ctl-style.log
+      exit "$status"
+    workingDirectory: $(Build.SourcesDirectory)
+    displayName: Check CTL Style
+    env:
+      STYLE_PACKAGE_VERSION: $(STYLE_PACKAGE_VERSION)
+
+  - task: PublishBuildArtifacts@1
+    condition: always()
+    inputs:
+      PathtoPublish: '$(Build.SourcesDirectory)/.artifacts'
+      ArtifactName: CodeAnalysisLogs
+    displayName: Publish SARIF and Style Log

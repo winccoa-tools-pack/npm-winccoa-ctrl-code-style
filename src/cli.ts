@@ -3,6 +3,7 @@
 import { checkStyle, formatStyle } from './style-check';
 import { registerWorkerProjectWithStyleCheck } from './register';
 import type { StyleCheckOptions } from './types';
+import type { ReportFormat } from './reports';
 
 const EXIT_OK = 0;
 const EXIT_USAGE = 1;
@@ -17,6 +18,12 @@ export interface ParsedCliArgs {
     styleCheckProjectPath?: string;
     registerProject: boolean;
     timeout?: number;
+    blacklist: string[];
+    blacklistFile?: string;
+    showDiff: boolean;
+    reportFormat?: ReportFormat;
+    reportFile?: string;
+    reportRoot?: string;
 }
 
 export function printUsage(): void {
@@ -37,6 +44,12 @@ export function printUsage(): void {
             '  --langs <csv>                Worker project langs (default: en_US.utf8)',
             '  --style-check-path <path>    StyleCheck sub-project (default: package winccoa/StyleCheck)',
             '  --no-register                Skip registration (use existing worker config)',
+            '  --blacklist <path>           Skip file/directory (repeatable; relative to CWD)',
+            '  --blacklist-file <path>      Path list; entries relative to list file; # comments',
+            '  --no-diff                    Disable unified original/formatted diffs',
+            '  --report-format <format>     sarif or gitlab (requires --report-file)',
+            '  --report-file <path>         Machine-readable output artifact',
+            '  --report-root <path>         Checkout root for report paths (default: CWD)',
             '  -t, --timeout <ms>           WCCOActrl timeout in ms (default: 120000)',
             '  -h, --help                   Show this help',
             '',
@@ -90,6 +103,12 @@ export function parseArgs(argv: string[]): ParsedCliArgs | null {
     let styleCheckProjectPath: string | undefined;
     let registerProject = true;
     let timeout: number | undefined;
+    const blacklist: string[] = [];
+    let blacklistFile: string | undefined;
+    let showDiff = true;
+    let reportFormat: ReportFormat | undefined;
+    let reportFile: string | undefined;
+    let reportRoot: string | undefined;
 
     let i = 2;
     while (i < args.length) {
@@ -117,6 +136,40 @@ export function parseArgs(argv: string[]): ParsedCliArgs | null {
             case '--no-register':
                 registerProject = false;
                 break;
+            case '--blacklist':
+            case '--blacklist-file': {
+                const value = args[++i];
+                if (!value || value.startsWith('-')) {
+                    process.stderr.write(`Error: Missing path for ${flag}.\n`);
+                    return null;
+                }
+                if (flag === '--blacklist') blacklist.push(value);
+                else blacklistFile = value;
+                break;
+            }
+            case '--no-diff':
+                showDiff = false;
+                break;
+            case '--report-format': {
+                const value = args[++i];
+                if (value !== 'sarif' && value !== 'gitlab') {
+                    process.stderr.write('Error: Report format must be sarif or gitlab.\n');
+                    return null;
+                }
+                reportFormat = value;
+                break;
+            }
+            case '--report-file':
+            case '--report-root': {
+                const value = args[++i];
+                if (!value || value.startsWith('-')) {
+                    process.stderr.write(`Error: Missing path for ${flag}.\n`);
+                    return null;
+                }
+                if (flag === '--report-file') reportFile = value;
+                else reportRoot = value;
+                break;
+            }
             case '-t':
             case '--timeout': {
                 const raw = args[++i] ?? '';
@@ -135,6 +188,15 @@ export function parseArgs(argv: string[]): ParsedCliArgs | null {
         i++;
     }
 
+    if (
+        Boolean(reportFormat) !== Boolean(reportFile) ||
+        (commandRaw === 'register' && (reportFormat || reportRoot))
+    ) {
+        process.stderr.write(
+            'Error: Reports require check/format and both --report-format and --report-file.\n',
+        );
+        return null;
+    }
     return {
         command: commandRaw,
         projectPath,
@@ -144,6 +206,12 @@ export function parseArgs(argv: string[]): ParsedCliArgs | null {
         styleCheckProjectPath: styleCheckProjectPath || undefined,
         registerProject,
         timeout,
+        blacklist,
+        blacklistFile,
+        showDiff,
+        reportFormat,
+        reportFile,
+        reportRoot,
     };
 }
 
@@ -181,6 +249,12 @@ export async function main(argv: string[] = process.argv): Promise<number> {
             styleCheckProjectPath: parsed.styleCheckProjectPath,
             registerProject: parsed.registerProject,
             timeout: parsed.timeout,
+            blacklist: parsed.blacklist,
+            blacklistFile: parsed.blacklistFile,
+            showDiff: parsed.showDiff,
+            reportFormat: parsed.reportFormat,
+            reportFile: parsed.reportFile,
+            reportRoot: parsed.reportRoot,
         };
 
         process.stderr.write(
@@ -205,6 +279,8 @@ export async function main(argv: string[] = process.argv): Promise<number> {
                 process.stderr.write('\n');
             }
         }
+
+        if (result.diff) process.stdout.write(result.diff);
 
         if (result.success) {
             process.stderr.write('Style operation completed successfully.\n');
