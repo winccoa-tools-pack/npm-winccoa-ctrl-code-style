@@ -1,0 +1,42 @@
+name: CTL Style SARIF
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+  actions: read
+  packages: read
+  security-events: write
+jobs:
+  style:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: style
+        continue-on-error: true
+        uses: winccoa-tools-pack/github-actions-winccoa/actions/winccoa-style-check@main
+        with:
+          path: src/Squirt
+          winccoa-version: '3.21'
+          docker-image: ${{ vars.WINCCOA_IMAGE }}
+          package-version: ${{ vars.STYLE_PACKAGE_VERSION }}
+          report-format: sarif
+          report-path: .artifacts/ctl-style.sarif
+          log-path: .artifacts/ctl-style.log
+      - if: always() && steps.style.outputs.report-path != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: ${{ steps.style.outputs.report-path }}
+          category: winccoa-ctl-style
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctl-style-diagnostics
+          path: .artifacts/
+      - if: always() && steps.style.outcome != 'success'
+        run: exit 1
