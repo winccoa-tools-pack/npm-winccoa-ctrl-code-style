@@ -8,6 +8,9 @@ The examples use `STYLE_PACKAGE_VERSION` or a repository variable so operators
 can select that release without changing the example scripts. Do not use a Git
 branch name as an npm version.
 
+See the [release prerelease guide](release-prereleases.md) for candidate creation,
+base-version matching and rollout of workflow changes.
+
 Use an approved image or agent with WinCC OA, Node.js/npm and the necessary
 license/access configuration. Register the worker and StyleCheck in the same
 host/container that runs the check. The worker is runnable; StyleCheck is not.

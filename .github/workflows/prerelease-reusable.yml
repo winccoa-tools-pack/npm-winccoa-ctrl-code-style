@@ -95,9 +95,13 @@ jobs:
             echo "${{ needs.versioning.outputs.changelog }}"
             echo ""
             echo "### 🔍 Testing Notes"
-            echo "- This is a **pre-release** npm package published with dist-tag **next**"
-            echo "- Install: npm i $PACKAGE_NAME@${{ steps.meta.outputs.version }}"
-            echo "- Or: npm i $PACKAGE_NAME@next"
+            if [ "${{ inputs.publish_to_npm }}" = "true" ]; then
+              echo "- Published to npm with dist-tag **next**"
+              echo "- Install: npm i $PACKAGE_NAME@${{ steps.meta.outputs.version }}"
+            else
+              echo "- GitHub prerelease only; not published to npm"
+              echo "- Download the attached tarball and install with: npm i ./<downloaded-package>.tgz"
+            fi
             echo "- Source branch: ${{ inputs.target_branch }}"
             echo "- Report issues at: https://github.com/${{ github.repository }}/issues"
             echo "EOF"
