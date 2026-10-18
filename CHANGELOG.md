@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-10-18
+
+### Added
+
+- add support for blacklisting files and generating reports (#32)
+- add CTL style check package first draft
+
+### Fixed
+
+- clarify empty astyle --formatted stdout as clean style (#17)
+- durable StyleCheck path and absolute CTL source scan (#14)
+
+### Changed
+
+- upmerge main to develop (#16)
+- deps-dev(deps-dev): bump typescript-eslint from 8.71.0 to 8.71.1 (#31)
+- deps-dev(deps-dev): bump @types/node (#29)
+- deps-dev(deps-dev): bump typescript-eslint from 8.70.1 to 8.71.0 (#26)
+- deps-dev(deps-dev): bump @types/node (#25)
+- deps-dev(deps-dev): bump brace-expansion from 1.1.18 to 1.1.21 (#28)
+- deps-dev(deps-dev): bump globals from 17.12.0 to 17.13.0 (#27)
+- deps-dev(deps-dev): bump typescript-eslint from 8.70.0 to 8.70.1 (#22)
+- deps-dev(deps-dev): bump prettier (#21)
+- deps-dev(deps-dev): bump @types/node (#20)
+- deps-dev(deps-dev): bump tsx from 4.23.13 to 4.23.15 (#23)
+- deps-dev(deps-dev): bump prettier (#19)
+- deps-dev(deps-dev): bump @types/node in the testing group (#18)
+- deps-dev(deps-dev): bump typescript-eslint from 8.69.0 to 8.70.0 (#8)
+- deps-dev(deps-dev): bump @types/node (#4)
+- sync .github settings and workflows from template (#10)
+- deps-dev(deps-dev): bump globals from 17.11.0 to 17.12.0
+- fix MD036 headings in VISION.md
+- style-fix
+- Initial commit
+
 ## [Unreleased]
 
 ### Added
